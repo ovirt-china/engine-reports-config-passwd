@@ -1,0 +1,135 @@
+#!/bin/bash
+# oVirt Engine Reports Portal User Password Configuration Script
+# By MaZhe <mazhe2014@gmail.com>
+
+usage() {
+        cat << __EOF__
+Usage: $0 [--user=USERNAME [--password=PASSWORD]]
+    --user=USERNAME
+        The username.
+    --password=PASSWORD
+        The password.
+    -h, --help
+	Show this help message.
+
+__EOF__
+        exit 1
+}
+
+interactive=true
+while [ -n "$1" ]; do
+        x="$1"
+        v="${x#*=}"
+        shift
+        case "${x}" in
+                --user=*)
+                        USERNAME="${v}"
+                ;;
+                --password=*)
+                        PASSWORD="${v}"
+			if [ -z $USERNAME ]; then
+				usage
+			fi
+                ;;
+                --help)
+                        usage
+                ;;
+		--non-interactive)
+			if [ ! -z $USERNAME ] && [ ! -z $PASSWORD ]; then
+				interactive=false
+			fi
+		;;
+		-h)
+			usage
+		;;
+                *)
+			usage
+                ;;
+        esac
+done
+
+Set_ReportsUserPassword(){
+	echo
+	echo -n "It will take a while. Please wait. "
+	local USERNAME=$1
+	local PASSWORD=$2
+	TMPDIR=/tmp/reports-users
+	LOGFILE=/var/log/engine-reports-config-password.log
+	[ -e $TMPDIR ] && rm -rf $TMPDIR
+	mkdir -p $TMPDIR
+	cd /usr/share/jasperreports-server/buildomatic/
+	export ADDITIONAL_CONFIG_DIR=/var/lib/ovirt-engine-reports/build-conf/
+	./js-export.sh --output-dir $TMPDIR --users &> $LOGFILE
+	if [ $? -ne 0 ]; then
+		echo
+		echo "Password update failed. "
+		echo "Log File: $LOGFILE. "
+		rm -rf $TMPDIR
+		exit 1
+	else
+		if [ -f $TMPDIR/users/$USERNAME.xml ]; then
+			sed -i "s/<password>.*/<password>$PASSWORD<\/password>/g" $TMPDIR/users/$USERNAME.xml
+			./js-import.sh --input-dir $TMPDIR --update &>> $LOGFILE
+			if [ $? -eq 0 ]; then
+				echo
+				echo "Password update successfully."
+				if $interactive ; then
+					echo "Please run \"service ovirt-engine-reportsd restart\"."
+				else
+					service ovirt-engine-reportsd restart &>> $LOGFILE
+				fi
+				rm -rf $TMPDIR
+				exit 0
+			else
+				echo
+				echo "Password update failed."
+				echo "Log File: $LOGFILE. "
+				rm -rf $TMPDIR
+				exit 1
+			fi
+		else
+			echo
+			echo "User \"$USERNAME\" is not exsit."
+			rm -rf $TMPDIR
+			exit 2
+		fi
+	fi
+}
+
+Get_Username(){
+	DEFUSER="admin"
+	read -p "Please enter Username: [$DEFUSER]" USERNAME
+	if [ -z $USERNAME ]; then
+		USERNAME=$DEFUSER
+	fi
+}
+
+Get_Password(){
+	read -sp "Please enter Password: " PASSWORD
+	if [ -z $PASSWORD ]; then
+		echo
+		echo -n "Password can not be empty. "
+		read -n1
+		Get_Password
+	else
+		echo
+		read -sp "Please retype password: " REPASSWORD
+		if [ -z $PASSWORD ] || [ "x$PASSWORD" != "x$REPASSWORD" ]; then
+			echo
+			echo -n "Sorry, passwords do not match. "
+			read -n1
+			Get_Password
+		fi
+	fi
+}
+
+if [ ! -z $USERNAME ] && [ -z $PASSWORD ]; then
+	Get_Password
+	Set_ReportsUserPassword $USERNAME $PASSWORD
+elif [ ! -z $USERNAME ] && [ ! -z $PASSWORD ]; then
+	Set_ReportsUserPassword $USERNAME $PASSWORD
+else
+	Get_Username
+	Get_Password
+	Set_ReportsUserPassword $USERNAME $PASSWORD
+fi
