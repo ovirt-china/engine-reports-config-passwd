@@ -48,13 +48,14 @@ while [ -n "$1" ]; do
         esac
 done
 
+TMPDIR=/tmp/reports-users
+LOGFILE=/var/log/engine-reports-config-password.log
+
 Set_ReportsUserPassword(){
 	echo
 	echo -n "It will take a while. Please wait. "
 	local USERNAME=$1
 	local PASSWORD=$2
-	TMPDIR=/tmp/reports-users
-	LOGFILE=/var/log/engine-reports-config-password.log
 	[ -e $TMPDIR ] && rm -rf $TMPDIR
 	mkdir -p $TMPDIR
 	cd /usr/share/jasperreports-server/buildomatic/
@@ -69,6 +70,7 @@ Set_ReportsUserPassword(){
 	else
 		if [ -f $TMPDIR/users/$USERNAME.xml ]; then
 			sed -i "s/<password>.*/<password>$PASSWORD<\/password>/g" $TMPDIR/users/$USERNAME.xml
+			Delete_File
 			./js-import.sh --input-dir $TMPDIR --update &>> $LOGFILE
 			if [ $? -eq 0 ]; then
 				echo
@@ -121,6 +123,17 @@ Get_Password(){
 			Get_Password
 		fi
 	fi
+}
+
+#Delete non-matched user's file
+Delete_File(){
+	sed -i "s/<user>.*<\/user>/<user>$USERNAME<\/user>/g" $TMPDIR/index.xml
+	FILELIST=`ls $TMPDIR/users`
+	for FILE in $FILELIST; do
+		if [ "$FILE" != "$USERNAME.xml" ]; then
+			rm -rf $TMPDIR/users/$FILE
+		fi
+	done
 }
 
 if [ ! -z $USERNAME ] && [ -z $PASSWORD ]; then

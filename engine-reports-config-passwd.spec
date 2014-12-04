@@ -1,6 +1,6 @@
 Name:		engine-reports-config-passwd
 Version:	0.1
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	oVirt Engine Reports Portal User Password Configuration Tool
 
 Group:		Application
@@ -38,5 +38,8 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Thu Dec  4 2014 MaZhe <mazhe2014@gmail.com> 0.1-2
+- Bug fix : Delete non-matched user's file
+
 * Fri Nov 26 2014 MaZhe <mazhe2014@gmail.com> 0.1-1
 - Initial package tagging.
