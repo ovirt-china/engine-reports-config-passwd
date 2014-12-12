@@ -116,7 +116,7 @@ Get_Password(){
 	else
 		echo
 		read -sp "Please retype password: " REPASSWORD
-		if [ -z $PASSWORD ] || [ "x$PASSWORD" != "x$REPASSWORD" ]; then
+		if [ -z $REPASSWORD ] || [ "x$PASSWORD" != "x$REPASSWORD" ]; then
 			echo
 			echo -n "Sorry, passwords do not match. "
 			read -n1
